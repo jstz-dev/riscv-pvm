@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::boxed::Box;
-use std::error;
 use std::error::Error;
 use std::fs;
 use std::ops::Bound;
@@ -12,7 +11,8 @@ use std::ops::Bound;
 use octez_riscv::machine_state::block_cache::DefaultCacheConfig;
 use octez_riscv::machine_state::block_cache::block;
 use octez_riscv::machine_state::block_cache::block::Block;
-use octez_riscv::machine_state::memory::M1G;
+// use octez_riscv::machine_state::memory::M1G;
+use octez_riscv::machine_state::memory::M32G;
 use octez_riscv::state_backend::owned_backend::Owned;
 use octez_riscv::stepper::StepResult;
 use octez_riscv::stepper::Stepper;
@@ -28,13 +28,13 @@ use crate::cli::RunOptions;
 cfg_if::cfg_if! {
     if #[cfg(feature = "disable-jit")] {
         /// Inner execution strategy for blocks.
-        type BlockImplInner = block::Interpreted<M1G, Owned>;
+        type BlockImplInner = block::Interpreted<M32G, Owned>;
     } else if #[cfg(feature = "inline-jit")] {
         /// Inner execution strategy for blocks.
-        type BlockImplInner = block::Jitted<octez_riscv::machine_state::block_cache::block::InlineCompiler<M1G>, M1G>;
+        type BlockImplInner = block::Jitted<octez_riscv::machine_state::block_cache::block::InlineCompiler<M32G>, M32G>;
     } else {
         /// Inner execution strategy for blocks.
-        type BlockImplInner = block::Jitted<octez_riscv::machine_state::block_cache::block::OutlineCompiler<M1G>, M1G>;
+        type BlockImplInner = block::Jitted<octez_riscv::machine_state::block_cache::block::OutlineCompiler<M32G>, M32G>;
     }
 }
 
@@ -67,13 +67,14 @@ pub fn run(opts: RunOptions) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-type PvmStepperRunner<B> = PvmStepper<Console<'static>, M1G, DefaultCacheConfig, Owned, B>;
-
-pub(crate) fn make_pvm_stepper<B: Block<M1G, Owned>>(
+pub(crate) fn make_pvm_stepper<B: Block<M32G, Owned>>(
     program: &[u8],
     common: &CommonOptions,
     block_builder: B::BlockBuilder,
-) -> Result<PvmStepperRunner<B>, Box<dyn error::Error>> {
+) -> Result<
+    PvmStepper<Console<'static>, M32G, DefaultCacheConfig, Owned, B>,
+    std::boxed::Box<dyn std::error::Error>,
+> {
     let mut inbox = InboxBuilder::new();
     if let Some(inbox_file) = &common.inbox.file {
         inbox.load_from_file(inbox_file)?;
@@ -87,7 +88,7 @@ pub(crate) fn make_pvm_stepper<B: Block<M1G, Owned>>(
         Console::new()
     };
 
-    let stepper = PvmStepper::<_, M1G, DefaultCacheConfig, Owned, B>::new(
+    let stepper = PvmStepper::<_, M32G, DefaultCacheConfig, Owned, B>::new(
         program,
         inbox.build(),
         console,
