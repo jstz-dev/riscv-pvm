@@ -4,6 +4,7 @@
 
 //! Simplified [`BuddyLayout`] selection using const-generics
 
+use super::branch_combinations::BuddyBranch8Layout;
 use super::BuddyLayout;
 use super::branch_combinations::BuddyBranch1KiLayout;
 use super::branch_combinations::BuddyBranch4Layout;
@@ -126,3 +127,8 @@ impl<T> BuddyLayoutMatch<{ 256 * 1024 }> for T {
 impl<T> BuddyLayoutMatch<{ 1024 * 1024 }> for T {
     type AssocLayout = BuddyBranch1KiLayout<BuddyLayoutProxy<1024>>;
 }
+
+impl<T> BuddyLayoutMatch<{ 8 * 1024 * 1024 }> for T {
+    type AssocLayout = BuddyBranch8Layout<BuddyBranch1KiLayout<BuddyLayoutProxy<1024>>>;
+}
+
