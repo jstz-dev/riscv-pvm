@@ -9,6 +9,8 @@ use std::num::NonZeroUsize;
 
 use thiserror::Error;
 
+use crate::storage::binary;
+
 #[derive(Error, Debug)]
 pub enum HashError {
     #[error("BLAKE2b hashing error")]
@@ -43,13 +45,18 @@ pub struct Hash {
 
 impl Hash {
     /// Hash a slice of bytes
-    pub fn blake2b_hash_bytes(bytes: &[u8]) -> Result<Self, HashError> {
-        tezos_crypto_rs::blake2b::digest_256(bytes).try_into()
+    pub fn blake3_hash_bytes(bytes: &[u8]) -> Result<Self, HashError> {
+        let digest = blake3::hash(bytes).into();
+        Ok(Hash { digest })
     }
 
     /// Get the hash of a value that can be serialised by hashing its serialisation
-    pub fn blake2b_hash<T: serde::Serialize>(data: T) -> Result<Self, HashError> {
-        Self::blake2b_hash_bytes(&bincode::serialize(&data)?)
+    pub fn blake3_hash<T: serde::Serialize>(data: T) -> Result<Self, HashError> {
+        let mut hasher = blake3::Hasher::new();
+        binary::serialise_into(&data, &mut hasher)?;
+
+        let digest = hasher.finalize().into();
+        Ok(Hash { digest })
     }
 
     /// Combine multiple [`struct@Hash`] values into a single one.
@@ -67,7 +74,7 @@ impl Hash {
         // TODO RV-250: Instead of building the whole input and hashing it,
         // we should use incremental hashing, which isn't currently supported
         // in `tezos_crypto_rs`.
-        Hash::blake2b_hash_bytes(&input)
+        Hash::blake3_hash_bytes(&input)
     }
 }
 
@@ -148,7 +155,7 @@ impl HashWriter {
 
     /// Hash the contents of the buffer.
     fn flush_buffer(&mut self) -> Result<(), HashError> {
-        let hash = Hash::blake2b_hash_bytes(&self.buffer)?;
+        let hash = Hash::blake3_hash_bytes(&self.buffer)?;
         self.hashes.push(hash);
         self.buffer.clear();
         Ok(())
