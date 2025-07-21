@@ -45,18 +45,18 @@ pub struct Hash {
 
 impl Hash {
     /// Hash a slice of bytes
-    pub fn blake3_hash_bytes(bytes: &[u8]) -> Result<Self, HashError> {
+    pub fn blake3_hash_bytes(bytes: &[u8]) -> Self {
         let digest = blake3::hash(bytes).into();
-        Ok(Hash { digest })
+        Hash { digest }
     }
 
     /// Get the hash of a value that can be serialised by hashing its serialisation
-    pub fn blake3_hash<T: serde::Serialize>(data: T) -> Result<Self, HashError> {
+    pub fn blake3_hash<T: serde::Serialize>(data: T) -> Self {
         let mut hasher = blake3::Hasher::new();
-        binary::serialise_into(&data, &mut hasher)?;
+        binary::serialise_into(&data, &mut hasher).expect("Writing to a Hasher should not fail");
 
         let digest = hasher.finalize().into();
-        Ok(Hash { digest })
+        Hash { digest }
     }
 
     /// Combine multiple [`struct@Hash`] values into a single one.
@@ -64,7 +64,7 @@ impl Hash {
     /// The hashes are combined by concatenating them, then hashing the result.
     /// Pre-image resistance is not compromised because the concatenation is not
     /// ambiguous, with hashes having a fixed size ([`DIGEST_SIZE`]).
-    pub fn combine(hashes: &[Hash]) -> Result<Hash, HashError> {
+    pub fn combine(hashes: &[Hash]) -> Hash {
         let mut input: Vec<u8> = Vec::with_capacity(DIGEST_SIZE * hashes.len());
 
         hashes
@@ -146,19 +146,19 @@ impl HashWriter {
 
     /// Finalise the writer by hashing any remaining data and returning the vector
     /// of hashes.
-    pub fn finalise(mut self) -> Result<Vec<Hash>, HashError> {
+    pub fn finalise(mut self) -> Vec<Hash> {
         if !self.buffer.is_empty() {
-            self.flush_buffer()?;
+            self.flush_buffer();
         }
-        Ok(self.hashes)
+
+        self.hashes
     }
 
     /// Hash the contents of the buffer.
-    fn flush_buffer(&mut self) -> Result<(), HashError> {
-        let hash = Hash::blake3_hash_bytes(&self.buffer)?;
+    fn flush_buffer(&mut self) {
+        let hash = Hash::blake3_hash_bytes(&self.buffer);
         self.hashes.push(hash);
         self.buffer.clear();
-        Ok(())
     }
 }
 
@@ -176,9 +176,10 @@ impl std::io::Write for HashWriter {
 
             // If the buffer has been completely filled, flush it.
             if rem_buffer_len == new_buf_len {
-                self.flush_buffer().map_err(std::io::Error::other)?;
+                self.flush_buffer();
             }
         }
+
         Ok(consumed)
     }
 
@@ -208,7 +209,7 @@ pub(crate) fn build_custom_merkle_hash(
     while nodes.len() > 1 {
         // Group the nodes into chunks of size `arity` and hash each chunk.
         for chunk in nodes.chunks(arity) {
-            next_level.push(Hash::combine(chunk)?)
+            next_level.push(Hash::combine(chunk))
         }
 
         std::mem::swap(&mut nodes, &mut next_level);

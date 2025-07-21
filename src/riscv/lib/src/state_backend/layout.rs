@@ -146,11 +146,11 @@ macro_rules! struct_layout {
                 fn state_hash<M: $crate::state_backend::ManagerRead + $crate::state_backend::ManagerSerialise>(
                     state: $crate::state_backend::AllocatedOf<Self, M>
                 ) -> std::result::Result<$crate::storage::Hash, $crate::storage::HashError> {
-                    $crate::storage::Hash::combine(&[
+                    Ok($crate::storage::Hash::combine(&[
                         $(
                             [<$field_name:camel>]::state_hash(state.$field_name)?
                         ),+
-                    ])
+                    ]))
                 }
             }
 

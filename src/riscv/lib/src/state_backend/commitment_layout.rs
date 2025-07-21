@@ -37,7 +37,7 @@ where
     T: serde::Serialize + 'static,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
-        Hash::blake3_hash(state)
+        Ok(Hash::blake3_hash(state))
     }
 }
 
@@ -46,7 +46,7 @@ where
     T: serde::Serialize + Copy + 'static,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
-        Hash::blake3_hash(state)
+        Ok(Hash::blake3_hash(state))
     }
 }
 
@@ -56,7 +56,7 @@ impl<const LEN: usize> CommitmentLayout for DynArray<LEN> {
         chunks_to_writer::<LEN, _, _>(&mut writer, |address| {
             state.read::<[u8; MERKLE_LEAF_SIZE.get()]>(address)
         })?;
-        let hashes = writer.finalise()?;
+        let hashes = writer.finalise();
         hash::build_custom_merkle_hash(MERKLE_ARITY, hashes)
     }
 }
@@ -68,7 +68,7 @@ where
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
         let hashes = [A::state_hash(state.0)?, B::state_hash(state.1)?];
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 
@@ -84,7 +84,7 @@ where
             B::state_hash(state.1)?,
             C::state_hash(state.2)?,
         ];
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 
@@ -102,7 +102,7 @@ where
             C::state_hash(state.2)?,
             D::state_hash(state.3)?,
         ];
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 
@@ -122,7 +122,7 @@ where
             D::state_hash(state.3)?,
             E::state_hash(state.4)?,
         ];
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 
@@ -144,7 +144,7 @@ where
             E::state_hash(state.4)?,
             F::state_hash(state.5)?,
         ];
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 
@@ -157,7 +157,7 @@ where
             .into_iter()
             .map(T::state_hash)
             .collect::<Result<Vec<_>, _>>()?;
-        Hash::combine(&hashes)
+        Ok(Hash::combine(&hashes))
     }
 }
 

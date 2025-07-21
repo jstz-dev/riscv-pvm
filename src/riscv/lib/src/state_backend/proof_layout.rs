@@ -191,7 +191,7 @@ impl<'a> ProofTree<'a> {
 
         let hash = match leaf {
             MerkleProofLeaf::Blind(hash) => *hash,
-            MerkleProofLeaf::Read(data) => Hash::blake3_hash_bytes(data)?,
+            MerkleProofLeaf::Read(data) => Hash::blake3_hash_bytes(data),
         };
 
         Ok(hash)
@@ -346,7 +346,7 @@ where
     ) -> Result<Hash, PartialHashError> {
         let region = state.into_region();
         match region.get_partial_region() {
-            PartialState::Complete(region) => Ok(Hash::blake3_hash(region)?),
+            PartialState::Complete(region) => Ok(Hash::blake3_hash(region)),
             PartialState::Absent => proof.partial_hash_leaf(),
             PartialState::Incomplete => Err(PartialHashError::Fatal),
         }
@@ -395,7 +395,7 @@ where
     ) -> Result<Hash, PartialHashError> {
         let region = state.into_region();
         match region.get_partial_region() {
-            PartialState::Complete(region) => Ok(Hash::blake3_hash(region)?),
+            PartialState::Complete(region) => Ok(Hash::blake3_hash(region)),
             PartialState::Absent => proof.partial_hash_leaf(),
             PartialState::Incomplete => Err(PartialHashError::Fatal),
         }
@@ -512,7 +512,7 @@ impl<const LEN: usize> ProofLayout for DynArray<LEN> {
                         {
                             PartialState::Absent => hashes.push(tree.partial_hash_leaf()),
                             PartialState::Complete(data) => {
-                                hashes.push(Ok(Hash::blake3_hash_bytes(data)?))
+                                hashes.push(Ok(Hash::blake3_hash_bytes(data)))
                             }
                             PartialState::Incomplete => {
                                 return Err(PartialHashError::Fatal);
@@ -1076,7 +1076,7 @@ pub fn combine_partial_hashes(
 ) -> Result<Hash, PartialHashError> {
     let hash_results = hash_results.as_ref();
     if hash_results.is_empty() {
-        return Ok(Hash::combine(&[])?);
+        return Ok(Hash::combine(&[]));
     }
 
     // If the first result is a hash, all results need to be a hash in order to
@@ -1101,7 +1101,7 @@ pub fn combine_partial_hashes(
 
     if expect_ok {
         debug_assert_eq!(hashes.len(), hash_results_len);
-        return Ok(Hash::combine(hashes.as_slice())?);
+        return Ok(Hash::combine(hashes.as_slice()));
     };
 
     proof_hash.ok_or(PartialHashError::PotentiallyRecoverable)

@@ -238,9 +238,7 @@ pub mod core {
         fn eq(&self, other: &Self) -> bool {
             self.called_count == other.called_count
                 && self.constructed_count == other.constructed_count
-                && Hash::blake3_hash(&self.instr)
-                    .unwrap()
-                    .eq(&Hash::blake3_hash(&other.instr).unwrap())
+                && Hash::blake3_hash(&self.instr).eq(&Hash::blake3_hash(&other.instr))
         }
     }
 
@@ -264,9 +262,7 @@ pub mod core {
                 return cmp;
             }
 
-            Hash::blake3_hash(self.instr.as_slice())
-                .unwrap()
-                .cmp(&Hash::blake3_hash(&other.instr).unwrap())
+            Hash::blake3_hash(self.instr.as_slice()).cmp(&Hash::blake3_hash(&other.instr))
         }
     }
 }
@@ -415,5 +411,5 @@ fn block_hash<MC: MemoryConfig, M: ManagerRead>(
         .map(|i| i.read_ref_stored())
         .collect::<Vec<_>>();
 
-    Hash::blake3_hash(instr).expect("Hashing instructions always succeeds")
+    Hash::blake3_hash(instr)
 }
