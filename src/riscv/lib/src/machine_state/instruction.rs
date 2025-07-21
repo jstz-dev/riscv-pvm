@@ -129,9 +129,9 @@ pub enum OpCode {
     X64Xor,
     X64Or,
     X64And,
-    ShiftLeft,
-    ShiftRightUnsigned,
-    ShiftRightSigned,
+    X64ShiftLeft,
+    X64ShiftRightUnsigned,
+    X64ShiftRightSigned,
     SetLessThanSigned,
     SetLessThanUnsigned,
     AddWord,
@@ -146,9 +146,9 @@ pub enum OpCode {
     X64XorImm,
     X64OrImm,
     Andi,
-    ShiftLeftImmediate,
-    ShiftRightImmediateUnsigned,
-    ShiftRightImmediateSigned,
+    X64ShiftLeftImm,
+    X64ShiftRightImmUnsigned,
+    X64ShiftRightImmSigned,
     X32ShiftLeftImm,
     X32ShiftRightImmSigned,
     X32ShiftRightImmUnsigned,
@@ -349,9 +349,9 @@ impl OpCode {
             Self::X64Xor => Args::run_x64_xor,
             Self::X64Or => Args::run_x64_or,
             Self::X64And => Args::run_x64_and,
-            Self::ShiftLeft => Args::run_shift_left,
-            Self::ShiftRightUnsigned => Args::run_shift_right_unsigned,
-            Self::ShiftRightSigned => Args::run_shift_right_signed,
+            Self::X64ShiftLeft => Args::run_x64_shift_left,
+            Self::X64ShiftRightUnsigned => Args::run_x64_shift_right_unsigned,
+            Self::X64ShiftRightSigned => Args::run_x64_shift_right_signed,
             Self::SetLessThanSigned => Args::run_set_less_than_signed,
             Self::SetLessThanUnsigned => Args::run_set_less_than_unsigned,
             Self::AddWord => Args::run_add_word,
@@ -364,9 +364,9 @@ impl OpCode {
             Self::X64XorImm => Args::run_x64_xor_immediate,
             Self::X64OrImm => Args::run_x64_or_immediate,
             Self::Andi => Args::run_andi,
-            Self::ShiftLeftImmediate => Args::run_shift_left_immediate,
-            Self::ShiftRightImmediateUnsigned => Args::run_shift_right_immediate_unsigned,
-            Self::ShiftRightImmediateSigned => Args::run_shift_right_immediate_signed,
+            Self::X64ShiftLeftImm => Args::run_x64_shift_left_imm,
+            Self::X64ShiftRightImmUnsigned => Args::run_x64_shift_right_imm_unsigned,
+            Self::X64ShiftRightImmSigned => Args::run_x64_shift_right_imm_signed,
             Self::X32ShiftLeftImm => Args::run_x32_shift_left_imm,
             Self::X32ShiftRightImmUnsigned => Args::run_x32_shift_right_imm_unsigned,
             Self::X32ShiftRightImmSigned => Args::run_x32_shift_right_imm_signed,
@@ -594,12 +594,12 @@ impl OpCode {
             Self::BranchGreaterThanOrEqualZero => Some(Args::run_branch_greater_than_or_equal_zero),
             Self::BranchGreaterThanZero => Some(Args::run_branch_greater_than_zero),
 
-            Self::ShiftLeft => Some(Args::run_shift_left),
-            Self::ShiftRightUnsigned => Some(Args::run_shift_right_unsigned),
-            Self::ShiftRightSigned => Some(Args::run_shift_right_signed),
-            Self::ShiftLeftImmediate => Some(Args::run_shift_left_immediate),
-            Self::ShiftRightImmediateUnsigned => Some(Args::run_shift_right_immediate_unsigned),
-            Self::ShiftRightImmediateSigned => Some(Args::run_shift_right_immediate_signed),
+            Self::X64ShiftLeft => Some(Args::run_x64_shift_left),
+            Self::X64ShiftRightUnsigned => Some(Args::run_x64_shift_right_unsigned),
+            Self::X64ShiftRightSigned => Some(Args::run_x64_shift_right_signed),
+            Self::X64ShiftLeftImm => Some(Args::run_x64_shift_left_imm),
+            Self::X64ShiftRightImmUnsigned => Some(Args::run_x64_shift_right_imm_unsigned),
+            Self::X64ShiftRightImmSigned => Some(Args::run_x64_shift_right_imm_signed),
             Self::X32ShiftLeft => Some(Args::run_x32_shift_left),
             Self::X32ShiftRightUnsigned => Some(Args::run_x32_shift_right_unsigned),
             Self::X32ShiftRightSigned => Some(Args::run_x32_shift_right_signed),
@@ -788,7 +788,7 @@ macro_rules! impl_r_type {
 
     ($fn: ident, $shift: ident) => {
         fn $fn<I: ICB>(&self, icb: &mut I) -> IcbFnResult<I> {
-            integer::run_shift(icb, Shift::$shift, self.rs1.nzx, self.rs2.nzx, self.rd.nzx);
+            integer::run_x64_shift(icb, Shift::$shift, self.rs1.nzx, self.rs2.nzx, self.rd.nzx);
             icb.ok(Next(self.width))
         }
     };
@@ -809,7 +809,7 @@ macro_rules! impl_x32_shift_type {
         fn $fn<I: ICB>(&self, icb: &mut I) -> IcbFnResult<I> {
             let rs1 = self.rs1.nzx;
             let rd = self.rd.nzx;
-            integer::run_x32_shift_immediate(icb, Shift::$shift, rs1, self.imm, rd);
+            integer::run_x32_shift_imm(icb, Shift::$shift, rs1, self.imm, rd);
             icb.ok(Next(self.width))
         }
     };
@@ -869,7 +869,7 @@ macro_rules! impl_i_type {
 
     ($fn: ident, $shift: path) => {
         fn $fn<I: ICB>(&self, icb: &mut I) -> IcbFnResult<I> {
-            integer::run_shift_immediate(icb, $shift, self.imm, self.rs1.nzx, self.rd.nzx);
+            integer::run_x64_shift_imm(icb, $shift, self.imm, self.rs1.nzx, self.rd.nzx);
             icb.ok(Next(self.width))
         }
     };
@@ -1171,9 +1171,9 @@ impl Args {
     impl_r_type!(integer::run_x64_xor, run_x64_xor, non_zero);
     impl_r_type!(integer::run_x64_and, run_x64_and, non_zero);
     impl_r_type!(integer::run_x64_or, run_x64_or, non_zero);
-    impl_r_type!(run_shift_left, Left);
-    impl_r_type!(run_shift_right_unsigned, RightUnsigned);
-    impl_r_type!(run_shift_right_signed, RightSigned);
+    impl_r_type!(run_x64_shift_left, Left);
+    impl_r_type!(run_x64_shift_right_unsigned, RightUnsigned);
+    impl_r_type!(run_x64_shift_right_signed, RightSigned);
     impl_r_type!(
         integer::run_set_less_than_signed,
         run_set_less_than_signed,
@@ -1208,9 +1208,9 @@ impl Args {
         non_zero
     );
     impl_i_type!(integer::run_andi, run_andi, non_zero);
-    impl_i_type!(run_shift_left_immediate, Shift::Left);
-    impl_i_type!(run_shift_right_immediate_unsigned, Shift::RightUnsigned);
-    impl_i_type!(run_shift_right_immediate_signed, Shift::RightSigned);
+    impl_i_type!(run_x64_shift_left_imm, Shift::Left);
+    impl_i_type!(run_x64_shift_right_imm_unsigned, Shift::RightUnsigned);
+    impl_i_type!(run_x64_shift_right_imm_signed, Shift::RightSigned);
     impl_x32_shift_type!(Left, run_x32_shift_left_imm, imm);
     impl_x32_shift_type!(RightUnsigned, run_x32_shift_right_imm_unsigned, imm);
     impl_x32_shift_type!(RightSigned, run_x32_shift_right_imm_signed, imm);
@@ -2181,7 +2181,7 @@ impl From<&InstrCacheable> for Instruction {
                 InstrWidth::Compressed,
             ),
             InstrCacheable::CAddi4spn(args) => Instruction::from_ic_caddi4spn(args),
-            InstrCacheable::CSlli(args) => Instruction::new_shift_left_immediate(
+            InstrCacheable::CSlli(args) => Instruction::new_x64_shift_left_imm(
                 args.rd_rs1,
                 args.rd_rs1,
                 args.imm,
