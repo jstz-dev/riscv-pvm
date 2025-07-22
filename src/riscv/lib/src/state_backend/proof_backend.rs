@@ -14,10 +14,11 @@
 //! [`MerkleTree`]: merkle::MerkleTree
 //! [`ProofLayout`]: super::ProofLayout
 
-use std::cell::Cell;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::sync::RwLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 use bincode::de::Decode;
 use bincode::de::Decoder;
@@ -51,7 +52,7 @@ pub struct ProofGen<M: ManagerBase> {
 }
 
 impl<M: ManagerBase> ManagerBase for ProofGen<M> {
-    type Region<E: 'static, const LEN: usize> = ProofRegion<E, LEN, M>;
+    type Region<E: Send + Sync + 'static, const LEN: usize> = ProofRegion<E, LEN, M>;
 
     type DynRegion<const LEN: usize> = ProofDynRegion<LEN, M>;
 
@@ -71,7 +72,9 @@ impl<M: ManagerBase> ManagerBase for ProofGen<M> {
 }
 
 impl<M: ManagerAlloc> ManagerAlloc for ProofGen<M> {
-    fn allocate_region<E, const LEN: usize>(init_value: [E; LEN]) -> Self::Region<E, LEN> {
+    fn allocate_region<E: Send + Sync, const LEN: usize>(
+        init_value: [E; LEN],
+    ) -> Self::Region<E, LEN> {
         ProofRegion::bind(M::allocate_region::<E, LEN>(init_value))
     }
 
@@ -83,28 +86,36 @@ impl<M: ManagerAlloc> ManagerAlloc for ProofGen<M> {
 /// Implementation of [`ManagerRead`] which wraps another manager and
 /// additionally records read locations.
 impl<M: ManagerRead> ManagerRead for ProofGen<M> {
-    fn region_read<E: Copy, const LEN: usize>(region: &Self::Region<E, LEN>, index: usize) -> E {
+    fn region_read<E: Copy + Send + Sync, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+        index: usize,
+    ) -> E {
         *Self::region_ref(region, index)
     }
 
-    fn region_ref<E: 'static, const LEN: usize>(region: &Self::Region<E, LEN>, index: usize) -> &E {
+    fn region_ref<E: Send + Sync + 'static, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+        index: usize,
+    ) -> &E {
         region.set_access_info();
         region.unrecorded_ref(index)
     }
 
-    fn region_read_all<E: Copy, const LEN: usize>(region: &Self::Region<E, LEN>) -> Vec<E> {
+    fn region_read_all<E: Copy + Send + Sync, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+    ) -> Vec<E> {
         (0..LEN).map(|i| Self::region_read(region, i)).collect()
     }
 
-    fn dyn_region_read<E: Elem, const LEN: usize>(
+    fn dyn_region_read<E: Elem + Send + Sync, const LEN: usize>(
         region: &Self::DynRegion<LEN>,
         address: usize,
     ) -> E {
-        region.reads.borrow_mut().insert::<E>(address);
+        region.reads.write().unwrap().insert::<E>(address);
         region.unrecorded_read(address)
     }
 
-    fn dyn_region_read_all<E: Elem, const LEN: usize>(
+    fn dyn_region_read_all<E: Elem + Send + Sync, const LEN: usize>(
         region: &Self::DynRegion<LEN>,
         address: usize,
         values: &mut [E],
@@ -147,7 +158,7 @@ impl<M: ManagerRead> ManagerRead for ProofGen<M> {
 /// Implementation of [`ManagerWrite`] which wraps another manager and
 /// records written locations but does not write to the wrapped region directly.
 impl<M: ManagerBase> ManagerWrite for ProofGen<M> {
-    fn region_write<E, const LEN: usize>(
+    fn region_write<E: Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -156,7 +167,7 @@ impl<M: ManagerBase> ManagerWrite for ProofGen<M> {
         region.writes.insert(index, value);
     }
 
-    fn region_write_all<E: Copy, const LEN: usize>(
+    fn region_write_all<E: Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         values: &[E],
     ) {
@@ -165,7 +176,7 @@ impl<M: ManagerBase> ManagerWrite for ProofGen<M> {
         }
     }
 
-    fn dyn_region_write<E: Elem, const LEN: usize>(
+    fn dyn_region_write<E: Elem + Send + Sync, const LEN: usize>(
         region: &mut Self::DynRegion<LEN>,
         address: usize,
         value: E,
@@ -177,7 +188,7 @@ impl<M: ManagerBase> ManagerWrite for ProofGen<M> {
         }
     }
 
-    fn dyn_region_write_all<E: Elem + Copy, const LEN: usize>(
+    fn dyn_region_write_all<E: Elem + Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::DynRegion<LEN>,
         address: usize,
         values: &[E],
@@ -205,7 +216,7 @@ impl<M: ManagerBase> ManagerWrite for ProofGen<M> {
 /// Implementation of [`ManagerReadWrite`] which wraps another manager and
 /// additionally records read and written locations.
 impl<M: ManagerRead> ManagerReadWrite for ProofGen<M> {
-    fn region_replace<E: Copy, const LEN: usize>(
+    fn region_replace<E: Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -221,7 +232,7 @@ impl<M: ManagerRead> ManagerReadWrite for ProofGen<M> {
 /// via variants of [`ManagerRead`] functions which do not record access
 /// information.
 impl<M: ManagerSerialise> ManagerSerialise for ProofGen<M> {
-    fn serialise_region<T: Encode, const LEN: usize, E: Encoder>(
+    fn serialise_region<T: Encode + Send + Sync, const LEN: usize, E: Encoder>(
         region: &Self::Region<T, LEN>,
         mut encoder: E,
     ) -> Result<(), EncodeError> {
@@ -296,7 +307,11 @@ impl<M: ManagerSerialise> ManagerSerialise for ProofGen<M> {
 
 // TODO: RV-709 Remove this impl when `TestBackendFactory` bounds are relaxed.
 impl<M: ManagerDeserialise> ManagerDeserialise for ProofGen<M> {
-    fn deserialise_region<T: Decode<()>, const LEN: usize, D: Decoder<Context = ()>>(
+    fn deserialise_region<
+        T: Decode<()> + Send + Sync,
+        const LEN: usize,
+        D: Decoder<Context = ()>,
+    >(
         decoder: D,
     ) -> Result<Self::Region<T, LEN>, DecodeError> {
         let source = M::deserialise_region::<T, LEN, D>(decoder)?;
@@ -312,7 +327,7 @@ impl<M: ManagerDeserialise> ManagerDeserialise for ProofGen<M> {
 }
 
 impl<M: ManagerClone> ManagerClone for ProofGen<M> {
-    fn clone_region<E: 'static + Clone, const LEN: usize>(
+    fn clone_region<E: Clone + Send + Sync + 'static, const LEN: usize>(
         region: &Self::Region<E, LEN>,
     ) -> Self::Region<E, LEN> {
         region.clone()
@@ -337,30 +352,30 @@ impl<M: ManagerClone> ManagerClone for ProofGen<M> {
 /// An access to any part of the region is thus recorded as an access to the region as a whole.
 /// The underlying region is never mutated, but all written values are recorded
 /// in order to preserve the integrity of subsequent reads.
-pub struct ProofRegion<E: 'static, const LEN: usize, M: ManagerBase> {
+pub struct ProofRegion<E: Send + Sync + 'static, const LEN: usize, M: ManagerBase> {
     source: M::Region<E, LEN>,
     writes: BTreeMap<usize, E>,
-    access: Cell<bool>,
+    access: AtomicBool,
 }
 
-impl<M: ManagerBase, E: 'static, const LEN: usize> ProofRegion<E, LEN, M> {
+impl<M: ManagerBase, E: Send + Sync + 'static, const LEN: usize> ProofRegion<E, LEN, M> {
     /// Bind a pre-existing region.
     pub fn bind(source: M::Region<E, LEN>) -> Self {
         Self {
             source,
             writes: BTreeMap::new(),
-            access: Cell::new(false),
+            access: AtomicBool::new(false),
         }
     }
 
     /// Get a copy of the access log.
     pub fn get_access_info(&self) -> bool {
-        self.access.get()
+        self.access.load(Ordering::Acquire)
     }
 
     /// Record that the regions has been accessed
     pub fn set_access_info(&self) {
-        self.access.set(true)
+        self.access.store(true, Ordering::Release);
     }
 
     /// Get a reference to the wrapper region.
@@ -369,7 +384,7 @@ impl<M: ManagerBase, E: 'static, const LEN: usize> ProofRegion<E, LEN, M> {
     }
 }
 
-impl<M: ManagerRead, E: 'static, const LEN: usize> ProofRegion<E, LEN, M> {
+impl<M: ManagerRead, E: Send + Sync + 'static, const LEN: usize> ProofRegion<E, LEN, M> {
     /// Version of [`ManagerRead::region_ref`] which does not record
     /// the access as a read.
     fn unrecorded_ref(&self, index: usize) -> &E {
@@ -379,12 +394,12 @@ impl<M: ManagerRead, E: 'static, const LEN: usize> ProofRegion<E, LEN, M> {
     }
 }
 
-impl<E: Clone, const LEN: usize, M: ManagerClone> Clone for ProofRegion<E, LEN, M> {
+impl<E: Clone + Send + Sync, const LEN: usize, M: ManagerClone> Clone for ProofRegion<E, LEN, M> {
     fn clone(&self) -> Self {
         Self {
             source: M::clone_region(&self.source),
             writes: self.writes.clone(),
-            access: self.access.clone(),
+            access: AtomicBool::new(self.get_access_info()),
         }
     }
 }
@@ -397,7 +412,7 @@ impl<E: Clone, const LEN: usize, M: ManagerClone> Clone for ProofRegion<E, LEN, 
 /// recorded in order to preserve the integrity of subsequent reads.
 pub struct ProofDynRegion<const LEN: usize, M: ManagerBase> {
     source: M::DynRegion<LEN>,
-    reads: RefCell<DynAccess>,
+    reads: RwLock<DynAccess>,
     writes: BTreeMap<usize, u8>,
 }
 
@@ -406,7 +421,7 @@ impl<M: ManagerBase, const LEN: usize> ProofDynRegion<LEN, M> {
     pub fn bind(source: M::DynRegion<LEN>) -> Self {
         Self {
             source,
-            reads: RefCell::default(),
+            reads: RwLock::default(),
             writes: BTreeMap::new(),
         }
     }
@@ -414,7 +429,7 @@ impl<M: ManagerBase, const LEN: usize> ProofDynRegion<LEN, M> {
     /// Get the set of addresses of the region that were read from.
     /// This function is meant to be called once when Merkleising the region.
     pub fn get_read(&self) -> DynAccess {
-        self.reads.take()
+        self.reads.read().unwrap().clone()
     }
 
     /// Get the set of addresses of the region that were written to.
@@ -454,7 +469,7 @@ impl<const LEN: usize, M: ManagerClone> Clone for ProofDynRegion<LEN, M> {
     fn clone(&self) -> Self {
         Self {
             source: M::clone_dyn_region(&self.source),
-            reads: self.reads.clone(),
+            reads: RwLock::new(self.reads.read().unwrap().clone()),
             writes: self.writes.clone(),
         }
     }
@@ -480,7 +495,7 @@ impl<V: EnrichedValue, M: ManagerBase> ProofEnrichedCell<V, M> {
 
     /// Get a copy of the access log.
     pub fn get_access_info(&self) -> bool {
-        self.underlying.access.get()
+        self.underlying.get_access_info()
     }
 }
 
@@ -518,7 +533,7 @@ pub enum ProofWrapper {}
 impl<M: ManagerBase> FnManager<M> for ProofWrapper {
     type Output = ProofGen<M>;
 
-    fn map_region<E: 'static, const LEN: usize>(
+    fn map_region<E: Send + Sync + 'static, const LEN: usize>(
         input: <M as ManagerBase>::Region<E, LEN>,
     ) -> <ProofGen<M> as ManagerBase>::Region<E, LEN> {
         ProofRegion::bind(input)

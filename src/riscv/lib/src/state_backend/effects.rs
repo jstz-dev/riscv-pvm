@@ -29,12 +29,12 @@ pub trait EffectGetter {
 
 pub type EffectCellLayout<T> = Atom<T>;
 
-pub struct EffectCell<T: 'static, EG, M: ManagerBase> {
+pub struct EffectCell<T: Send + Sync + 'static, EG, M: ManagerBase> {
     inner: Cell<T, M>,
     _pd: PhantomData<EG>,
 }
 
-impl<T: ConstDefault, EG, M: ManagerBase> EffectCell<T, EG, M> {
+impl<T: Send + Sync + ConstDefault, EG, M: ManagerBase> EffectCell<T, EG, M> {
     pub fn bind(space: AllocatedOf<EffectCellLayout<T>, M>) -> Self {
         Self {
             inner: space,
@@ -51,7 +51,7 @@ impl<T: ConstDefault, EG, M: ManagerBase> EffectCell<T, EG, M> {
     }
 }
 
-impl<T: Copy, EG: EffectGetter, M: ManagerBase> EffectCell<T, EG, M> {
+impl<T: Send + Sync + Copy, EG: EffectGetter, M: ManagerBase> EffectCell<T, EG, M> {
     #[inline(always)]
     pub fn read(&self) -> T
     where
@@ -80,7 +80,7 @@ impl<T: Copy, EG: EffectGetter, M: ManagerBase> EffectCell<T, EG, M> {
     }
 }
 
-impl<T: ConstDefault, EG, M: ManagerBase> NewState<M> for EffectCell<T, EG, M> {
+impl<T: Send + Sync + ConstDefault, EG, M: ManagerBase> NewState<M> for EffectCell<T, EG, M> {
     fn new() -> Self
     where
         M: ManagerAlloc,
@@ -92,7 +92,7 @@ impl<T: ConstDefault, EG, M: ManagerBase> NewState<M> for EffectCell<T, EG, M> {
     }
 }
 
-impl<T: Copy, EG, M: ManagerClone> Clone for EffectCell<T, EG, M> {
+impl<T: Send + Sync + Copy, EG, M: ManagerClone> Clone for EffectCell<T, EG, M> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),

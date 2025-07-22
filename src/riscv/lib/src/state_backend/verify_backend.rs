@@ -79,7 +79,7 @@ pub enum ProofVerificationFailure {
 pub struct Verifier;
 
 impl ManagerBase for Verifier {
-    type Region<E: 'static, const LEN: usize> = Region<E, LEN>;
+    type Region<E: Send + Sync + 'static, const LEN: usize> = Region<E, LEN>;
 
     type DynRegion<const LEN: usize> = DynRegion<{ MERKLE_LEAF_SIZE.get() }, LEN>;
 
@@ -119,7 +119,9 @@ mod test_helpers {
     }
 
     impl ManagerAlloc for Verifier {
-        fn allocate_region<E, const LEN: usize>(init_value: [E; LEN]) -> Self::Region<E, LEN> {
+        fn allocate_region<E: Send + Sync, const LEN: usize>(
+            init_value: [E; LEN],
+        ) -> Self::Region<E, LEN> {
             Region::Partial(Box::new(init_value.map(Some)))
         }
 
@@ -132,15 +134,23 @@ mod test_helpers {
 }
 
 impl ManagerRead for Verifier {
-    fn region_read<E: Copy, const LEN: usize>(region: &Self::Region<E, LEN>, index: usize) -> E {
+    fn region_read<E: Copy + Send + Sync, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+        index: usize,
+    ) -> E {
         region[index]
     }
 
-    fn region_ref<E: 'static, const LEN: usize>(region: &Self::Region<E, LEN>, index: usize) -> &E {
+    fn region_ref<E: Send + Sync + 'static, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+        index: usize,
+    ) -> &E {
         &region[index]
     }
 
-    fn region_read_all<E: Copy, const LEN: usize>(region: &Self::Region<E, LEN>) -> Vec<E> {
+    fn region_read_all<E: Copy + Send + Sync, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+    ) -> Vec<E> {
         (0..LEN).map(|index| region[index]).collect()
     }
 
@@ -194,7 +204,7 @@ impl ManagerRead for Verifier {
 }
 
 impl ManagerWrite for Verifier {
-    fn region_write<E: 'static, const LEN: usize>(
+    fn region_write<E: Send + Sync + 'static, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -215,7 +225,7 @@ impl ManagerWrite for Verifier {
         }
     }
 
-    fn region_write_all<E: Copy, const LEN: usize>(
+    fn region_write_all<E: Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         values: &[E],
     ) {
@@ -233,7 +243,7 @@ impl ManagerWrite for Verifier {
         region.write_bytes(address, &raw_data);
     }
 
-    fn dyn_region_write_all<E: Elem + Copy, const LEN: usize>(
+    fn dyn_region_write_all<E: Elem + Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::DynRegion<LEN>,
         address: usize,
         values: &[E],
@@ -256,7 +266,7 @@ impl ManagerWrite for Verifier {
 }
 
 impl ManagerReadWrite for Verifier {
-    fn region_replace<E: Copy, const LEN: usize>(
+    fn region_replace<E: Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -268,7 +278,7 @@ impl ManagerReadWrite for Verifier {
 }
 
 impl ManagerClone for Verifier {
-    fn clone_region<E: Clone + 'static, const LEN: usize>(
+    fn clone_region<E: Clone + Send + Sync + 'static, const LEN: usize>(
         region: &Self::Region<E, LEN>,
     ) -> Self::Region<E, LEN> {
         region.clone()
@@ -580,7 +590,7 @@ where
     }
 }
 
-impl<E> Cell<E, Verifier> {
+impl<E: Send + Sync> Cell<E, Verifier> {
     /// Construct an absent verifier cell.
     pub const fn absent() -> Self {
         Cell::bind(Region::Absent)
@@ -594,7 +604,7 @@ impl<E> Cell<E, Verifier> {
     }
 }
 
-impl<E: Clone> TryFrom<Cell<E, Ref<'_, Verifier>>> for Cell<E, Owned> {
+impl<E: Clone + Send + Sync> TryFrom<Cell<E, Ref<'_, Verifier>>> for Cell<E, Owned> {
     type Error = PartialHashError;
 
     fn try_from(cell: Cell<E, Ref<'_, Verifier>>) -> Result<Self, Self::Error> {
@@ -666,7 +676,9 @@ mod tests {
     type RegionArb<E, const LEN: usize> = Option<PartialRegionArb<E, LEN>>;
 
     /// Construct [`Cells`] from a proptest value.
-    fn arb_to_cells<E, const LEN: usize>(region: RegionArb<E, LEN>) -> Cells<E, LEN, Verifier> {
+    fn arb_to_cells<E: Send + Sync, const LEN: usize>(
+        region: RegionArb<E, LEN>,
+    ) -> Cells<E, LEN, Verifier> {
         let region = match region {
             Some(data) => Region::Partial(data),
             None => Region::Absent,

@@ -10,7 +10,7 @@ pub trait FnManager<I: ManagerBase> {
     type Output: ManagerBase;
 
     /// Transform the region of manager `I` to one of manager `O`.
-    fn map_region<E: 'static, const LEN: usize>(
+    fn map_region<E: Send + Sync + 'static, const LEN: usize>(
         input: I::Region<E, LEN>,
     ) -> <Self::Output as ManagerBase>::Region<E, LEN>;
 
@@ -26,7 +26,9 @@ pub enum FnManagerIdent {}
 impl<M: ManagerBase> FnManager<M> for FnManagerIdent {
     type Output = M;
 
-    fn map_region<E: 'static, const LEN: usize>(input: M::Region<E, LEN>) -> M::Region<E, LEN> {
+    fn map_region<E: Send + Sync + 'static, const LEN: usize>(
+        input: M::Region<E, LEN>,
+    ) -> M::Region<E, LEN> {
         input
     }
 

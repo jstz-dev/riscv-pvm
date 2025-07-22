@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 /// Structural description of a state type
 pub trait Layout {
     /// Representation of the allocated regions in the state backend
-    type Allocated<M: super::ManagerBase>;
+    type Allocated<M: super::ManagerBase>: Send + Sync;
 }
 
 impl Layout for () {
@@ -28,7 +28,7 @@ pub struct Atom<T> {
     _pd: PhantomData<T>,
 }
 
-impl<T: 'static> Layout for Atom<T> {
+impl<T: Send + Sync + 'static> Layout for Atom<T> {
     type Allocated<M: super::ManagerBase> = super::Cell<T, M>;
 }
 
@@ -38,7 +38,7 @@ pub struct Array<T, const LEN: usize> {
     _pd: PhantomData<T>,
 }
 
-impl<T: 'static, const LEN: usize> Layout for Array<T, LEN> {
+impl<T: Send + Sync + 'static, const LEN: usize> Layout for Array<T, LEN> {
     type Allocated<M: super::ManagerBase> = super::Cells<T, LEN, M>;
 }
 

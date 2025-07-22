@@ -191,11 +191,11 @@ where
 
 /// Single element of type `E`
 #[repr(transparent)]
-pub struct Cell<E: 'static, M: ManagerBase> {
+pub struct Cell<E: Send + Sync + 'static, M: ManagerBase> {
     region: Cells<E, 1, M>,
 }
 
-impl<E: 'static, M: ManagerBase> Cell<E, M> {
+impl<E: Send + Sync + 'static, M: ManagerBase> Cell<E, M> {
     /// Allocate a new cell with the given value.
     pub fn new_with(value: E) -> Self
     where
@@ -257,7 +257,7 @@ impl<E: 'static, M: ManagerBase> Cell<E, M> {
     }
 }
 
-impl<E: ConstDefault, M: ManagerBase> NewState<M> for Cell<E, M> {
+impl<E: ConstDefault + Send + Sync, M: ManagerBase> NewState<M> for Cell<E, M> {
     fn new() -> Self
     where
         M: ManagerAlloc,
@@ -266,13 +266,13 @@ impl<E: ConstDefault, M: ManagerBase> NewState<M> for Cell<E, M> {
     }
 }
 
-impl<E: 'static, M: ManagerBase> From<Cells<E, 1, M>> for Cell<E, M> {
+impl<E: Send + Sync + 'static, M: ManagerBase> From<Cells<E, 1, M>> for Cell<E, M> {
     fn from(region: Cells<E, 1, M>) -> Self {
         Self { region }
     }
 }
 
-impl<T: bincode::Encode, M: ManagerSerialise> bincode::Encode for Cell<T, M> {
+impl<T: bincode::Encode + Send + Sync, M: ManagerSerialise> bincode::Encode for Cell<T, M> {
     fn encode<E: bincode::enc::Encoder>(
         &self,
         encoder: &mut E,
@@ -281,28 +281,32 @@ impl<T: bincode::Encode, M: ManagerSerialise> bincode::Encode for Cell<T, M> {
     }
 }
 
-impl<E: Decode<()>, M: ManagerDeserialise> Decode<()> for Cell<E, M> {
+impl<E: Decode<()> + Send + Sync, M: ManagerDeserialise> Decode<()> for Cell<E, M> {
     fn decode<D: Decoder<Context = ()>>(decoder: &mut D) -> Result<Self, DecodeError> {
         let region = Decode::decode(decoder)?;
         Ok(Self { region })
     }
 }
 
-impl<A: PartialEq<B>, B, M: ManagerRead, N: ManagerRead> PartialEq<Cell<B, N>> for Cell<A, M> {
+impl<A: PartialEq<B> + Send + Sync, B: Send + Sync, M: ManagerRead, N: ManagerRead>
+    PartialEq<Cell<B, N>> for Cell<A, M>
+{
     fn eq(&self, other: &Cell<B, N>) -> bool {
         self.as_ref() == other.as_ref()
     }
 }
 
-impl<E: Encode, M: ManagerSerialise> AccessInfoAggregatable for Cell<E, Ref<'_, ProofGen<M>>> {
+impl<E: Encode + Send + Sync, M: ManagerSerialise> AccessInfoAggregatable
+    for Cell<E, Ref<'_, ProofGen<M>>>
+{
     fn aggregate_access_info(&self) -> bool {
         self.region.region.get_access_info()
     }
 }
 
-impl<E: Eq, M: ManagerRead> Eq for Cell<E, M> {}
+impl<E: Eq + Send + Sync, M: ManagerRead> Eq for Cell<E, M> {}
 
-impl<E: Clone, M: ManagerClone> Clone for Cell<E, M> {
+impl<E: Clone + Send + Sync, M: ManagerClone> Clone for Cell<E, M> {
     fn clone(&self) -> Self {
         Self {
             region: self.region.clone(),
@@ -310,14 +314,14 @@ impl<E: Clone, M: ManagerClone> Clone for Cell<E, M> {
     }
 }
 
-impl<E, M: ManagerRead> AsRef<E> for Cell<E, M> {
+impl<E: Send + Sync, M: ManagerRead> AsRef<E> for Cell<E, M> {
     #[inline]
     fn as_ref(&self) -> &E {
         M::region_ref(&self.region.region, 0)
     }
 }
 
-impl<E, M: ManagerRead> Deref for Cell<E, M> {
+impl<E: Send + Sync, M: ManagerRead> Deref for Cell<E, M> {
     type Target = E;
 
     #[inline]
@@ -329,7 +333,7 @@ impl<E, M: ManagerRead> Deref for Cell<E, M> {
 /// Projection from [`Cell`] to its value type `E`
 pub struct CellProj<E>(PhantomData<E>);
 
-impl<E: 'static> Projection for CellProj<E> {
+impl<E: Send + Sync + 'static> Projection for CellProj<E> {
     type Subject = CellCons<E>;
 
     type Target = E;
@@ -374,11 +378,11 @@ impl<E: 'static> Projection for CellProj<E> {
 
 /// Multiple elements of type `E`
 #[repr(transparent)]
-pub struct Cells<E: 'static, const LEN: usize, M: ManagerBase> {
+pub struct Cells<E: Send + Sync + 'static, const LEN: usize, M: ManagerBase> {
     region: M::Region<E, LEN>,
 }
 
-impl<E: 'static, const LEN: usize, M: ManagerBase> Cells<E, LEN, M> {
+impl<E: Send + Sync + 'static, const LEN: usize, M: ManagerBase> Cells<E, LEN, M> {
     /// Allocate new cells with the given values.
     pub fn new_with(values: [E; LEN]) -> Self
     where
@@ -461,7 +465,7 @@ impl<E: 'static, const LEN: usize, M: ManagerBase> Cells<E, LEN, M> {
     }
 }
 
-impl<E: 'static, const LEN: usize> Cells<E, LEN, Owned> {
+impl<E: Send + Sync + 'static, const LEN: usize> Cells<E, LEN, Owned> {
     /// Obtain the byte offset from a pointer to `Cells<E, LEN, M>` to the memory of the elem at
     /// `index`.
     pub(crate) const fn region_elem_offset(index: usize) -> usize {
@@ -469,7 +473,9 @@ impl<E: 'static, const LEN: usize> Cells<E, LEN, Owned> {
     }
 }
 
-impl<E: ConstDefault + 'static, const LEN: usize, M: ManagerBase> NewState<M> for Cells<E, LEN, M> {
+impl<E: ConstDefault + Send + Sync + 'static, const LEN: usize, M: ManagerBase> NewState<M>
+    for Cells<E, LEN, M>
+{
     fn new() -> Self
     where
         M: ManagerAlloc,
@@ -478,7 +484,7 @@ impl<E: ConstDefault + 'static, const LEN: usize, M: ManagerBase> NewState<M> fo
     }
 }
 
-impl<T: bincode::Encode, const LEN: usize, M: ManagerSerialise> bincode::Encode
+impl<T: bincode::Encode + Send + Sync, const LEN: usize, M: ManagerSerialise> bincode::Encode
     for Cells<T, LEN, M>
 {
     fn encode<E: bincode::enc::Encoder>(
@@ -489,22 +495,29 @@ impl<T: bincode::Encode, const LEN: usize, M: ManagerSerialise> bincode::Encode
     }
 }
 
-impl<E: Decode<()>, const LEN: usize, M: ManagerDeserialise> Decode<()> for Cells<E, LEN, M> {
+impl<E: Decode<()> + Send + Sync, const LEN: usize, M: ManagerDeserialise> Decode<()>
+    for Cells<E, LEN, M>
+{
     fn decode<D: Decoder<Context = ()>>(decoder: &mut D) -> Result<Self, DecodeError> {
         let region = M::deserialise_region(decoder)?;
         Ok(Self { region })
     }
 }
 
-impl<A: PartialEq<B> + Copy, B: Copy, const LEN: usize, M: ManagerRead, N: ManagerRead>
-    PartialEq<Cells<B, LEN, N>> for Cells<A, LEN, M>
+impl<
+    A: PartialEq<B> + Copy + Send + Sync,
+    B: Copy + Send + Sync,
+    const LEN: usize,
+    M: ManagerRead,
+    N: ManagerRead,
+> PartialEq<Cells<B, LEN, N>> for Cells<A, LEN, M>
 {
     fn eq(&self, other: &Cells<B, LEN, N>) -> bool {
         (0..LEN).all(|i| self.read(i) == other.read(i))
     }
 }
 
-impl<E: Encode, const LEN: usize, M: ManagerSerialise> AccessInfoAggregatable
+impl<E: Encode + Send + Sync, const LEN: usize, M: ManagerSerialise> AccessInfoAggregatable
     for Cells<E, LEN, Ref<'_, ProofGen<M>>>
 {
     fn aggregate_access_info(&self) -> bool {
@@ -512,7 +525,7 @@ impl<E: Encode, const LEN: usize, M: ManagerSerialise> AccessInfoAggregatable
     }
 }
 
-impl<E: Clone, const LEN: usize, M: ManagerClone> Clone for Cells<E, LEN, M> {
+impl<E: Clone + Send + Sync, const LEN: usize, M: ManagerClone> Clone for Cells<E, LEN, M> {
     fn clone(&self) -> Self {
         Self {
             region: M::clone_region(&self.region),
@@ -523,7 +536,7 @@ impl<E: Clone, const LEN: usize, M: ManagerClone> Clone for Cells<E, LEN, M> {
 /// Projection from [`Cells`] to its element type `E`
 pub struct CellsProj<E, const LEN: usize>(PhantomData<E>);
 
-impl<E: 'static, const LEN: usize> Projection for CellsProj<E, LEN> {
+impl<E: Send + Sync + 'static, const LEN: usize> Projection for CellsProj<E, LEN> {
     type Subject = CellsCons<E, LEN>;
 
     type Target = E;

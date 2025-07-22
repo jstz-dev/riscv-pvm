@@ -325,7 +325,7 @@ where
 
 impl<T> ProofLayout for Atom<T>
 where
-    T: Encode + Decode<()> + 'static,
+    T: Encode + Decode<()> + Send + Sync + 'static,
 {
     fn to_merkle_tree(state: RefProofGenOwnedAlloc<Self>) -> Result<MerkleTree, HashError> {
         // The Merkle leaf must hold the serialisation of the initial state.
@@ -358,7 +358,7 @@ where
 
 impl<T, const LEN: usize> ProofLayout for Array<T, LEN>
 where
-    T: Encode + Decode<()> + 'static,
+    T: Encode + Decode<()> + Send + Sync + 'static,
 {
     fn to_merkle_tree(state: RefProofGenOwnedAlloc<Self>) -> Result<MerkleTree, HashError> {
         // RV-282: Break down into multiple leaves if the size of the `Cells`

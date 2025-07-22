@@ -36,7 +36,7 @@ impl<T: CommitmentLayout> CommitmentLayout for Box<T> {
 
 impl<T> CommitmentLayout for Atom<T>
 where
-    T: Encode + 'static,
+    T: Encode + Send + Sync + 'static,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
         Ok(Hash::blake3_hash(state))
@@ -45,7 +45,7 @@ where
 
 impl<T, const LEN: usize> CommitmentLayout for Array<T, LEN>
 where
-    T: Encode + 'static,
+    T: Encode + Send + Sync + 'static,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
         Ok(Hash::blake3_hash(state))

@@ -21,7 +21,7 @@ pub trait CloneLayout: Layout {
     fn clone_allocated<M: ManagerClone>(space: Self::Allocated<Ref<'_, M>>) -> Self::Allocated<M>;
 }
 
-impl<E: Clone + 'static> CloneLayout for Atom<E> {
+impl<E: Send + Sync + Clone + 'static> CloneLayout for Atom<E> {
     fn clone_allocated<M: ManagerClone>(space: Self::Allocated<Ref<'_, M>>) -> Self::Allocated<M> {
         let region = space.into_region();
         let region = M::clone_region(region);
@@ -29,7 +29,7 @@ impl<E: Clone + 'static> CloneLayout for Atom<E> {
     }
 }
 
-impl<E: Clone + 'static, const LEN: usize> CloneLayout for Array<E, LEN> {
+impl<E: Send + Sync + Clone + 'static, const LEN: usize> CloneLayout for Array<E, LEN> {
     fn clone_allocated<M: ManagerClone>(space: Self::Allocated<Ref<'_, M>>) -> Self::Allocated<M> {
         let region = space.into_region();
         let region = M::clone_region(region);

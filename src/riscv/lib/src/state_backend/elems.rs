@@ -26,7 +26,7 @@ pub trait StaticCopy: Copy + 'static {}
 impl<T: Copy + 'static> StaticCopy for T {}
 
 /// Values that can be stored in dynamic regions
-pub trait Elem {
+pub trait Elem: Send + Sync {
     /// Size of the stored representation in bytes
     const STORED_SIZE: NonZeroUsize;
 

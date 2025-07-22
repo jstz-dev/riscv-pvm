@@ -34,7 +34,9 @@ pub struct Owned;
 
 impl Owned {
     /// Get the byte offset from a pointer to `Owned::Region` to the start of the element at `index`.
-    pub(crate) const fn region_elem_offset<E: 'static, const LEN: usize>(index: usize) -> usize {
+    pub(crate) const fn region_elem_offset<E: Send + Sync + 'static, const LEN: usize>(
+        index: usize,
+    ) -> usize {
         assert!(index < LEN, "Out of bounds access for region");
 
         index * std::mem::size_of::<E>()
@@ -42,7 +44,7 @@ impl Owned {
 }
 
 impl ManagerBase for Owned {
-    type Region<E: 'static, const LEN: usize> = [E; LEN];
+    type Region<E: Send + Sync + 'static, const LEN: usize> = [E; LEN];
 
     type DynRegion<const LEN: usize> = memmap2::MmapMut;
 
@@ -62,7 +64,9 @@ impl ManagerBase for Owned {
 }
 
 impl ManagerAlloc for Owned {
-    fn allocate_region<E: 'static, const LEN: usize>(value: [E; LEN]) -> Self::Region<E, LEN> {
+    fn allocate_region<E: Send + Sync + 'static, const LEN: usize>(
+        value: [E; LEN],
+    ) -> Self::Region<E, LEN> {
         value
     }
 
@@ -80,22 +84,27 @@ impl ManagerAlloc for Owned {
 }
 
 impl ManagerRead for Owned {
-    fn region_read<E: StaticCopy, const LEN: usize>(
+    fn region_read<E: StaticCopy + Send + Sync, const LEN: usize>(
         region: &Self::Region<E, LEN>,
         index: usize,
     ) -> E {
         region[index]
     }
 
-    fn region_ref<E: 'static, const LEN: usize>(region: &Self::Region<E, LEN>, index: usize) -> &E {
+    fn region_ref<E: Send + Sync + 'static, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+        index: usize,
+    ) -> &E {
         &region[index]
     }
 
-    fn region_read_all<E: StaticCopy, const LEN: usize>(region: &Self::Region<E, LEN>) -> Vec<E> {
+    fn region_read_all<E: StaticCopy + Send + Sync, const LEN: usize>(
+        region: &Self::Region<E, LEN>,
+    ) -> Vec<E> {
         region.to_vec()
     }
 
-    fn dyn_region_read<E: Elem, const LEN: usize>(
+    fn dyn_region_read<E: Elem + Send + Sync, const LEN: usize>(
         region: &Self::DynRegion<LEN>,
         address: usize,
     ) -> E {
@@ -106,7 +115,7 @@ impl ManagerRead for Owned {
         unsafe { E::read_unaligned(region.as_ptr().add(address)) }
     }
 
-    fn dyn_region_read_all<E: Elem, const LEN: usize>(
+    fn dyn_region_read_all<E: Elem + Send + Sync, const LEN: usize>(
         region: &Self::DynRegion<LEN>,
         address: usize,
         values: &mut [E],
@@ -144,7 +153,7 @@ impl ManagerRead for Owned {
 }
 
 impl ManagerWrite for Owned {
-    fn region_write<E: 'static, const LEN: usize>(
+    fn region_write<E: Send + Sync + 'static, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -152,14 +161,14 @@ impl ManagerWrite for Owned {
         region[index] = value;
     }
 
-    fn region_write_all<E: StaticCopy, const LEN: usize>(
+    fn region_write_all<E: StaticCopy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         value: &[E],
     ) {
         region.copy_from_slice(value)
     }
 
-    fn dyn_region_write<E: Elem, const LEN: usize>(
+    fn dyn_region_write<E: Elem + Send + Sync, const LEN: usize>(
         region: &mut Self::DynRegion<LEN>,
         address: usize,
         value: E,
@@ -171,7 +180,7 @@ impl ManagerWrite for Owned {
         unsafe { value.write_unaligned(region.as_mut_ptr().add(address)) }
     }
 
-    fn dyn_region_write_all<E: Elem + Copy, const LEN: usize>(
+    fn dyn_region_write_all<E: Elem + Copy + Send + Sync, const LEN: usize>(
         region: &mut Self::DynRegion<LEN>,
         address: usize,
         values: &[E],
@@ -197,7 +206,7 @@ impl ManagerWrite for Owned {
 }
 
 impl ManagerReadWrite for Owned {
-    fn region_replace<E: StaticCopy, const LEN: usize>(
+    fn region_replace<E: StaticCopy + Send + Sync, const LEN: usize>(
         region: &mut Self::Region<E, LEN>,
         index: usize,
         value: E,
@@ -208,7 +217,7 @@ impl ManagerReadWrite for Owned {
 
 impl ManagerSerialise for Owned {
     fn serialise_region<
-        T: bincode::enc::Encode + 'static,
+        T: bincode::enc::Encode + Send + Sync + 'static,
         const LEN: usize,
         E: bincode::enc::Encoder,
     >(
@@ -231,7 +240,11 @@ impl ManagerSerialise for Owned {
 }
 
 impl ManagerDeserialise for Owned {
-    fn deserialise_region<T: Decode<()> + 'static, const LEN: usize, D: Decoder<Context = ()>>(
+    fn deserialise_region<
+        T: Decode<()> + Send + Sync + 'static,
+        const LEN: usize,
+        D: Decoder<Context = ()>,
+    >(
         mut decoder: D,
     ) -> Result<Self::Region<T, LEN>, DecodeError> {
         let mut items = array::from_fn(|_| MaybeUninit::<T>::uninit());
@@ -255,7 +268,7 @@ impl ManagerDeserialise for Owned {
 }
 
 impl ManagerClone for Owned {
-    fn clone_region<E: Clone + 'static, const LEN: usize>(
+    fn clone_region<E: Clone + Send + Sync + 'static, const LEN: usize>(
         region: &Self::Region<E, LEN>,
     ) -> Self::Region<E, LEN> {
         region.clone()

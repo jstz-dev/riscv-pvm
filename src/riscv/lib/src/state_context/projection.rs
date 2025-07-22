@@ -43,21 +43,21 @@ pub type ApplyCons<TC, MC, M> = <TC as TypeCons>::Applied<MC, M>;
 /// Type constructor [`ManagerBase::Region`]
 pub struct RegionCons<E, const LEN: usize>(PhantomData<E>);
 
-impl<E: 'static, const LEN: usize> TypeCons for RegionCons<E, LEN> {
+impl<E: Send + Sync + 'static, const LEN: usize> TypeCons for RegionCons<E, LEN> {
     type Applied<MC: MemoryConfig, M: ManagerBase> = M::Region<E, LEN>;
 }
 
 /// Type constructor [`crate::state_backend::Cell`]
 pub struct CellCons<E>(PhantomData<E>);
 
-impl<E: 'static> TypeCons for CellCons<E> {
+impl<E: Send + Sync + 'static> TypeCons for CellCons<E> {
     type Applied<MC: MemoryConfig, M: ManagerBase> = Cell<E, M>;
 }
 
 /// Type constructor [`crate::state_backend::Cells`]
 pub struct CellsCons<E, const LEN: usize>(PhantomData<E>);
 
-impl<E: 'static, const LEN: usize> TypeCons for CellsCons<E, LEN> {
+impl<E: Send + Sync + 'static, const LEN: usize> TypeCons for CellsCons<E, LEN> {
     type Applied<MC: MemoryConfig, M: ManagerBase> = Cells<E, LEN, M>;
 }
 
