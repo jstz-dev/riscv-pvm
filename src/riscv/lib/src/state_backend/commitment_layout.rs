@@ -17,8 +17,8 @@ use super::hash::HashError;
 use super::hash::HashWriter;
 use super::proof_backend::merkle::MERKLE_ARITY;
 use super::proof_backend::merkle::MERKLE_LEAF_SIZE;
-use super::proof_backend::merkle::chunks_to_writer;
 use crate::state_backend::hash::build_custom_merkle_hash;
+use crate::storage::binary;
 
 /// [`Layouts`] which may be used for commitments
 ///
@@ -55,9 +55,7 @@ where
 impl<const LEN: usize> CommitmentLayout for DynArray<LEN> {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
         let mut writer = HashWriter::new(MERKLE_LEAF_SIZE);
-        chunks_to_writer::<LEN, _, _>(&mut writer, |address| {
-            state.read::<[u8; MERKLE_LEAF_SIZE.get()]>(address)
-        })?;
+        binary::serialise_into(&state, &mut writer)?;
         let hashes = writer.finalise();
         hash::build_custom_merkle_hash(MERKLE_ARITY, hashes)
     }

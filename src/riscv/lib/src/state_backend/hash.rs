@@ -9,6 +9,10 @@ use std::num::NonZeroUsize;
 
 use bincode::Decode;
 use bincode::Encode;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::ParallelExtend;
+use rayon::iter::ParallelIterator;
+use rayon::slice::ParallelSlice;
 use thiserror::Error;
 
 use crate::storage::binary;
@@ -165,6 +169,16 @@ impl std::io::Write for HashWriter {
         let consumed = buf.len();
 
         while !buf.is_empty() {
+            if self.buffer.is_empty() && buf.len() >= self.size * 8 {
+                let hashes = buf.par_chunks_exact(self.size).map(Hash::blake3_hash_bytes);
+                let num_consumed = hashes.len() * self.size;
+
+                self.hashes.par_extend(hashes);
+                buf = &buf[num_consumed..];
+
+                continue;
+            }
+
             let rem_buffer_len = self.size - self.buffer.len();
             let new_buf_len = std::cmp::min(rem_buffer_len, buf.len());
 
