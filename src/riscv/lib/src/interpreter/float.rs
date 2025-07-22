@@ -8,6 +8,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::ops::Neg;
 
+use bincode::Decode;
+use bincode::Encode;
 use rustc_apfloat::Float;
 use rustc_apfloat::FloatConvert;
 use rustc_apfloat::Round;
@@ -526,7 +528,7 @@ where
 
 /// There are 5 supported rounding modes
 #[expect(clippy::upper_case_acronyms, reason = "Matches the RISC-V spec")]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Encode, Decode)]
 pub enum RoundingMode {
     /// Round to Nearest, ties to Even
     RNE,

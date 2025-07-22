@@ -93,22 +93,10 @@ fn run_steps_ladder<F>(
 
 fn assert_eq_struct<A, B>(lhs: &A, rhs: &B)
 where
-    A: serde::Serialize + PartialEq<B>,
-    B: serde::Serialize,
+    A: PartialEq<B>,
 {
     if lhs != rhs {
         eprintln!("> State mismatch, generating diff ...");
-
-        let (file_lhs, path_lhs) = tempfile::NamedTempFile::new().unwrap().keep().unwrap();
-        serde_json::to_writer(file_lhs, lhs).unwrap();
-        eprintln!("Lhs is located at {}", path_lhs.display());
-
-        let (file_rhs, path_rhs) = tempfile::NamedTempFile::new().unwrap().keep().unwrap();
-        serde_json::to_writer(file_rhs, rhs).unwrap();
-        eprintln!("Rhs is located at {}", path_rhs.display());
-
-        eprintln!("Run the following to diff them:");
-        eprintln!("jd {} {}", path_lhs.display(), path_rhs.display());
 
         panic!("Assertion failed: values are different");
     }

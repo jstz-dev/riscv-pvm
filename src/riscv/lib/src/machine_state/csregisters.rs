@@ -7,6 +7,8 @@ use std::ops::BitOr;
 use std::ops::Shl;
 use std::ops::Shr;
 
+use bincode::Decode;
+use bincode::Encode;
 use num_enum::TryFromPrimitive;
 
 use crate::bits::Bits64;
@@ -31,8 +33,8 @@ use crate::traps::Exception;
     TryFromPrimitive,
     strum::Display,
     Hash,
-    serde::Serialize,
-    serde::Deserialize,
+    Encode,
+    Decode,
 )]
 #[repr(usize)]
 pub enum CSRegister {
