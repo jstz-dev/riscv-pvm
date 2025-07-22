@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use bincode::Encode;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
 
 use super::AllocatedOf;
 use super::Array;
@@ -170,10 +173,14 @@ where
     T: CommitmentLayout,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
+        let chunk_length = state.len().div_ceil(MERKLE_ARITY);
         let nodes: Vec<Hash> = state
-            .into_iter()
-            .map(T::state_hash)
-            .collect::<Result<Vec<_>, _>>()?;
-        build_custom_merkle_hash(MERKLE_ARITY, nodes)
+            .into_par_iter()
+            .map(|state| T::state_hash(state).unwrap())
+            .chunks(chunk_length)
+            .map(|chunks| build_custom_merkle_hash(MERKLE_ARITY, chunks).unwrap())
+            .collect();
+        let hash = Hash::combine(&nodes);
+        Ok(hash)
     }
 }
