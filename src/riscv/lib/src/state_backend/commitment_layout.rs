@@ -155,11 +155,15 @@ where
     T: CommitmentLayout,
 {
     fn state_hash<M: ManagerSerialise>(state: AllocatedOf<Self, M>) -> Result<Hash, HashError> {
-        let hashes: Vec<Hash> = state
-            .into_iter()
-            .map(T::state_hash)
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Hash::combine(&hashes))
+        let mut hasher = blake3::Hasher::new();
+
+        for item in state {
+            let item_hash = T::state_hash(item)?;
+            hasher.update(&item_hash.digest);
+        }
+
+        let digest = hasher.finalize().into();
+        Ok(Hash { digest })
     }
 }
 

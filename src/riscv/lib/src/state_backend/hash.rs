@@ -40,7 +40,7 @@ pub const DIGEST_SIZE: usize = 32;
 /// a suitably sized byte slice or vector.
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Hash, PartialOrd, Ord)]
 pub struct Hash {
-    digest: [u8; DIGEST_SIZE],
+    pub digest: [u8; DIGEST_SIZE],
 }
 
 impl Hash {
@@ -64,17 +64,15 @@ impl Hash {
     /// The hashes are combined by concatenating them, then hashing the result.
     /// Pre-image resistance is not compromised because the concatenation is not
     /// ambiguous, with hashes having a fixed size ([`DIGEST_SIZE`]).
-    pub fn combine(hashes: &[Hash]) -> Hash {
-        let mut input: Vec<u8> = Vec::with_capacity(DIGEST_SIZE * hashes.len());
+    pub fn combine<'a>(hashes: impl IntoIterator<Item = &'a Hash>) -> Hash {
+        let mut hasher = blake3::Hasher::new();
 
-        hashes
-            .iter()
-            .for_each(|h| input.extend_from_slice(h.as_ref()));
+        for hash in hashes {
+            hasher.update(&hash.digest);
+        }
 
-        // TODO RV-250: Instead of building the whole input and hashing it,
-        // we should use incremental hashing, which isn't currently supported
-        // in `tezos_crypto_rs`.
-        Hash::blake3_hash_bytes(&input)
+        let digest = hasher.finalize().into();
+        Hash { digest }
     }
 }
 
