@@ -344,6 +344,7 @@ pub use config::M1M;
 pub use config::M4G;
 pub use config::M4K;
 pub use config::M8K;
+pub use config::M8G;
 pub use config::M16G;
 pub use config::M32G;
 pub use config::M64G;

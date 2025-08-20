@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+<<<<<<< current
 //! Simplified [`BuddyConfig`] selection using const-generics
 
 use octez_riscv_data::merkle_proof;
@@ -18,6 +19,28 @@ use super::leaf::BuddyLeafConfig;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch8Config;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch32Config;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch64Config;
+=======
+//! Simplified [`BuddyLayout`] selection using const-generics
+
+use octez_riscv_data::hash::Hash;
+use octez_riscv_data::hash::HashError;
+
+use super::BuddyLayout;
+use super::branch_combinations::BuddyBranch1KiLayout;
+use super::branch_combinations::BuddyBranch4Layout;
+use super::branch_combinations::BuddyBranch16Layout;
+use super::branch_combinations::BuddyBranch256Layout;
+use super::leaf::BuddyLeafLayout;
+use super::branch::BuddyBranch2Layout;
+use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch8Layout;
+use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch32Layout;
+use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch64Layout;
+use crate::state_backend::AllocatedOf;
+use crate::state_backend::CloneLayout;
+use crate::state_backend::CommitmentLayout;
+use crate::state_backend::FnManager;
+use crate::state_backend::Layout;
+>>>>>>> patched
 use crate::state_backend::ManagerBase;
 
 /// Proxy for a [`BuddyConfig`] that manages the specified number of `PAGES`
