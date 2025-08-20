@@ -10,6 +10,7 @@ use super::branch_combinations::BuddyBranch4Layout;
 use super::branch_combinations::BuddyBranch16Layout;
 use super::branch_combinations::BuddyBranch256Layout;
 use super::leaf::BuddyLeafLayout;
+use super::branch::BuddyBranch2Layout;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch8Layout;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch32Layout;
 use crate::machine_state::memory::buddy::branch_combinations::BuddyBranch64Layout;
@@ -142,6 +143,10 @@ impl<T> BuddyLayoutMatch<{ 1024 * 1024 }> for T {
     type AssocLayout = BuddyBranch1KiLayout<BuddyLayoutProxy<1024>>;
 }
 
+impl<T> BuddyLayoutMatch<{ 2 * 1024 * 1024 }> for T {
+    type AssocLayout = BuddyBranch2Layout<BuddyLayoutProxy<{ 1024 * 1024 }>>;
+}
+
 impl<T> BuddyLayoutMatch<{ 4 * 1024 * 1024 }> for T {
     type AssocLayout = BuddyBranch4Layout<BuddyLayoutProxy<{ 1024 * 1024 }>>;
 }
@@ -156,6 +161,10 @@ impl<T> BuddyLayoutMatch<{ 16 * 1024 * 1024 }> for T {
 
 impl<T> BuddyLayoutMatch<{ 1024 * 1024 * 1024 }> for T {
     type AssocLayout = BuddyBranch1KiLayout<BuddyLayoutProxy<{ 1024 * 1024 }>>;
+}
+
+impl<T> BuddyLayoutMatch<{ 8 * 1024 * 1024 * 1024 }> for T {
+    type AssocLayout = BuddyBranch8Layout<BuddyLayoutProxy<{ 1024 * 1024 * 1024 }>>;
 }
 
 impl<T> BuddyLayoutMatch<{ 16 * 1024 * 1024 * 1024 }> for T {
