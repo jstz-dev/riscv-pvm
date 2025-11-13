@@ -33,7 +33,8 @@ pub enum PvmError {
     SerializationError(String),
 }
 
-type NodePvmMemConfig = crate::machine_state::memory::M64M;
+
+type NodePvmMemConfig = crate::machine_state::memory::M16G;
 
 type NodePvmState<M> = Pvm<NodePvmMemConfig, Interpreted<NodePvmMemConfig, M>, M>;
 

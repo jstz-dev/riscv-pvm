@@ -100,6 +100,7 @@ impl<T> BuddyConfigMatch<{ 16 * 1024 * 1024 * 1024 }> for T {
     type AssocConfig = BuddyBranch16Config<BuddyConfigProxy<{ 1024 * 1024 * 1024 }>>;
 }
 
+
 impl<T> BuddyConfigMatch<{ 32 * 1024 * 1024 * 1024 }> for T {
     type AssocConfig = BuddyBranch32Config<BuddyConfigProxy<{ 1024 * 1024 * 1024 }>>;
 }
